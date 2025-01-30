@@ -10,35 +10,57 @@ library(tidyverse)
 library(devtools)
 library(openxlsx)
 library(lubridate)
+library(jsonlite)
 
 # Read in data sample data
 sample_data <- read.csv("/home/weirth/../killingsworth/Xcel CO BDR/Data/xe_bdr_evergreen_request1_111224.csv")
 
-# Read in GV Model Output Data (metered savings)
-directory <- "/home/weirth/../valle/data/xcel_co_bdr/model_outputs_bigrun1" # full outputs (500)
-# directory <- "/home/weirth/../valle/data/xcel_co_bdr/model_outputs_compare" # GV TEST 12/4
-#directory <- "/home/weirth/../valle/data/xcel_co_bdr/model_outputs_compare/run3_snipped" # GV TEST 12/4 3 snipped
-#directory <- "/home/weirth/../valle/data/xcel_co_bdr/model_outputs_compare/run3_12am_snipped" # GV TEST 12/4 3 12am snipped
-#directory <- "/home/weirth/../valle/data/xcel_co_bdr/model_outputs_compare/run3_12am" # GV TEST 12/4.2 12 am
+# Read in GV Model Output Data (metered savings) - VARIOUS LOCATIONS OF MODEL OUTPUTS
 
-# List all .txt files in the directory (including subdirectories)
+# directory <- "/home/weirth/../valle/data/xcel_co_bdr/model_outputs_bigrun1" # full outputs (500)
+directory <- "/home/weirth/../valle/data/xcel_co_bdr/model_outputs" # 12/13 outputs (special Franklin parameters)
+# directory <- "/home/weirth/../valle/data/xcel_co_bdr/model_outputs_compare" # GV TEST 12/4
+# directory <- "/home/weirth/../valle/data/xcel_co_bdr/model_outputs_compare/run3_snipped" # GV TEST 12/4 3 snipped
+# directory <- "/home/weirth/../valle/data/xcel_co_bdr/model_outputs_compare/run3_12am_snipped" # GV TEST 12/4 3 12am snipped
+# directory <- "/home/weirth/../valle/data/xcel_co_bdr/model_outputs_compare/run3_12am" # GV TEST 12/4.2 12 am
+
+# List all .txt files in the directory - include metered_savings and hourly_model_full_output - character vector
 txt_files <- list.files(directory, pattern = "\\.txt$", full.names = TRUE, recursive = TRUE)
 
-# Check incase file names were not found
+# Check incase txt_files is empty
 if (length(txt_files) == 0) {
   stop("No .txt files found. Check the directory path and file extensions.")
 }
 
-# We only need the metered savings files
+# We only need the metered savings files - filters down character vector
 metered_files <- grep("metered_savings_", txt_files, value = TRUE)
 
-# Parse JSON from metered files
+# Parse and extract JSON from metered files - use lapply to apply function to every part of the character vector
 metered_data_list <- lapply(metered_files, function(file) {
-  tryCatch(fromJSON(file), error = function(e) {
-    message(paste("Error parsing file:", file))
+  tryCatch({
+    # Check if the file exists - if not found will pass and return filepath string
+    if (!file.exists(file)) {
+      stop(paste("File not found:", file))
+    }
+    
+    # Read and parse JSON
+    json_data <- fromJSON(file, simplifyVector = TRUE) 
+    
+    # Optional: Perform specific transformations for your JSON structure
+    # Example: if the JSON contains nested data you want to extract
+    if (!is.null(json_data$data)) {
+      return(json_data$data)
+    } else {
+      return(json_data)
+    }
+  }, error = function(e) {
+    message(paste("Error parsing file:", file, ":", e$message))
     return(NULL)
   })
 })
+
+# Remove NULL entries if some files failed to parse
+metered_data_list <- Filter(Negate(is.null), metered_data_list)
 
 # Name meter list elements by file names
 names(metered_data_list) <- basename(metered_files)
@@ -56,6 +78,9 @@ cat("Metered files loaded:", length(metered_data_list), "\n")
 process_single_file <- function(json_data, file_name) {
   # Extract 'metered_savings'
   metered_savings <- json_data$metered_savings
+  
+  # Replace null (NA) values with 0 - this is specifically for hour 24
+  metered_savings <- lapply(metered_savings, function(value) ifelse(is.null(value), 0, value))
   
   # Extract timestamps and values
   timestamps <- names(metered_savings)
@@ -87,8 +112,8 @@ process_single_file <- function(json_data, file_name) {
   # Filter for July 12, 2024, 1–4 PM Mountain Time
   start_time <- ymd_hms("2024-07-12 13:00:00", tz = "America/Denver")
   end_time <- ymd_hms("2024-07-12 16:00:00", tz = "America/Denver")
-  df <- df %>%
-    filter(time >= start_time & time <= end_time)
+  # df <- df %>%
+  #   filter(time >= start_time & time <= end_time)
   
   return(df)
 }
@@ -141,7 +166,10 @@ joined_data <- all_metered_savings2 %>%
 
 
 # Write out the data
-write_csv(joined_data, "/home/weirth/CO BDR/Xcel-CO-BDR/GV Data Processing/Final Clean Data/savings_processed.csv")
+# write_csv(joined_data, "/home/weirth/CO BDR/Xcel-CO-BDR/GV Data Processing/Final Clean Data/savings_processed.csv")
+
+# Write out 500 distinct ID's to a csv ONLY RUN WHEN RUNNING FULL MODEL OUTPUTS
+#joined_data %>% select(model_id) %>% write_csv("/home/weirth/CO BDR/Xcel-CO-BDR/GV Data Processing/Final Clean Data/500_sites_ids.csv")
 
 # Print mean absolute difference
 mean(joined_data$absolute_savings_difference)

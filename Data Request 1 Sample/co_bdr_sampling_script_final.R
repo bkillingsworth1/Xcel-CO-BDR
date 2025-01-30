@@ -10,7 +10,7 @@ library(openxlsx)
 # Read in data 
 
 # AMI Data - Reading from BK ami directory
-data <- read.csv("../killingsworth/Xcel CO BDR/Data/xe_bdr_evergreen_request1_111224.csv")
+data <- read.csv("/home/weirth/../killingsworth/Xcel CO BDR/Data/xe_bdr_evergreen_request1_111224.csv")
 
 # Destination filepath for sample - into my AMI directory
 write_filepath <- "~/CO BDR/final_sample/cobdr_final_sample.csv"
