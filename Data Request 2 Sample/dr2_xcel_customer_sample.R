@@ -19,9 +19,12 @@ cohortA <- read.csv("/home/weirth/../killingsworth/Xcel CO BDR/Data/xe_bdr_everg
 set.seed(12)
 sampled_customers <- slice_sample(cohortA, n = 14000)
 
-# take only relevant column
+# take only relevant column (item id)
 sampled_customers_final <- sampled_customers %>%
   select(item_id)
 
-# Destination filepath for sample - into my AMI directory
+# --------------------
+# Write out
+# --------------------
+
 write_csv(sampled_customers_final, "~/CO BDR/Xcel-CO-BDR/Data Request 2 Sample/Xcel Sampled Treatment Group/xcel_14k_sample.csv")
