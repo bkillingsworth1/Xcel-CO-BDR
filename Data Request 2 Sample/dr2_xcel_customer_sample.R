@@ -7,6 +7,7 @@
 
 # Packages
 library(tidyverse)
+library(writexl)
 
 # AMI Data - Reading from BK ami directory
 cohortA <- read.csv("/home/weirth/../killingsworth/Xcel CO BDR/Data/xe_bdr_evergreen_request1_111224.csv")
@@ -27,4 +28,4 @@ sampled_customers_final <- sampled_customers %>%
 # Write out
 # --------------------
 
-write_csv(sampled_customers_final, "~/CO BDR/Xcel-CO-BDR/Data Request 2 Sample/Xcel Sampled Treatment Group/xcel_14k_sample.csv")
+write_xlsx(sampled_customers_final, "~/CO BDR/Xcel-CO-BDR/Data Request 2 Sample/Xcel Sampled Treatment Group/xcel_14k_sample.xlsx")
